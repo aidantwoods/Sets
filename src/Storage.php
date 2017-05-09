@@ -9,7 +9,7 @@ use Iterator;
 
 interface Storage extends Countable, Iterator, ArrayAccess
 {
-    public function union(self $Storage) : void;
+    public function union(Iterator $Storage) : void;
 
     public function add($value) : void;
 
@@ -23,11 +23,13 @@ interface Storage extends Countable, Iterator, ArrayAccess
 
     public function offsetGet($value);
 
-    public function offsetSet($value) : void;
+    public function offsetUnset($value, $dumpedData = null) : void;
 
-    public function minus(self $Storage) : void;
+    public function offsetSet($value, $dumpedData = null) : void;
 
-    public function intersection(self $Storage) : void;
+    public function minus(Iterator $Storage) : void;
+
+    public function intersection(Iterator $Storage) : void;
 
     public function current();
 

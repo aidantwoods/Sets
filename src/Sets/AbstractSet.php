@@ -5,13 +5,14 @@ namespace Aidantwoods\Sets\Sets;
 
 use Aidantwoods\Sets\AbstractSetOps;
 use Aidantwoods\Sets\Set;
+use Aidantwoods\Sets\Storage\ObjectStorage;
+use Aidantwoods\Sets\Storage\ValueStorage;
 
-use SplObjectStorage;
 use InvalidArgumentException;
 use LogicException;
 
 /**
- * A Set is like SplObjectStorage, except the type of the contained objects
+ * A Set is like Storage, except the type of the contained objects
  * is fixed on construction.
  */
 abstract class AbstractSet extends AbstractSetOps implements Set
@@ -33,30 +34,50 @@ abstract class AbstractSet extends AbstractSetOps implements Set
     {
         if ($this->className !== null)
         {
-            throw new LogicException('May not redefine set type');
+            throw new LogicException('May not redefine Set type');
         }
 
         $lowerClassName = strtolower($className);
 
         if (in_array($lowerClassName, self::SCALARS, true))
         {
+            if ($lowerClassName === 'bool')
+            {
+                throw new InvalidArgumentException('Bool Sets not supported');
+            }
+
             $this->isScalar   = true;
             $this->className  = $lowerClassName;
             $this->scalarTest = "is_{$this->className}";
+
+            $this->Storage = new ValueStorage;
         }
         else
         {
             $this->className = $className;
-        }
 
-        $this->SplObjectStorage = new SplObjectStorage;
+            $this->Storage = new ObjectStorage;
+        }
     }
 
-    public function addAll(Set $storage) : void
+    public function getSetType() : string
     {
-        if ($this->isSetContainable($storage))
+        return $this->className;
+    }
+
+    public function subset(callback $suchThat) : Set
+    {
+        return $this->filter($suchThat);
+    }
+
+    public function addArray(array $storage) : void
+    {
+        if ($this->isArrayContainable($storage))
         {
-            $this->SplObjectStorage->addAll($storage);
+            foreach ($storage as $object)
+            {
+                $this->add($object);
+            }
         }
         else
         {
@@ -66,11 +87,11 @@ abstract class AbstractSet extends AbstractSetOps implements Set
         }
     }
 
-    public function addArray(array $storage) : void
+    public function union(Set $Storage) : void
     {
-        if ($this->isArrayContainable($storage))
+        if ($this->isSetContainable($Storage))
         {
-            $this->addMultiple($storage);
+            $this->Storage->union($Storage);
         }
         else
         {
@@ -89,100 +110,87 @@ abstract class AbstractSet extends AbstractSetOps implements Set
             );
         }
 
-        $this->SplObjectStorage->attach($this->val($object));
+        $this->Storage->add($object);
     }
 
-    protected function addMultiple($Storage) : void
+    public function contains($object) : bool
     {
-        foreach ($storage as $object)
-        {
-            $this->add($object);
-        }
-    }
-
-    protected function val($object)
-    {
-        return $this->isScalar ? $object : new PseudoObject($object);
-    }
-
-    public function offsetGet($object)
-    {
-        if ($this->contains($this->val($object)))
-        {
-            # we do not associate data with objects in a set
-            return $object;
-        }
-        else
-        {
-            # for standard exeception
-            return $this->SplObjectStorage->offsetGet($this->val($object));
-        }
-    }
-
-    public function getInfo()
-    {
-        return $this->current();
-    }
-
-    public function offsetSet($object, $data = null) : void
-    {
-        $this->add($object);
-    }
-
-    public function getSetType() : string
-    {
-        return $this->className;
-    }
-
-
-    public function isScalar() : bool
-    {
-        return $this->isScalar;
-    }
-
-    public function subset(callback $suchThat) : Set
-    {
-        return $this->filter($suchThat);
+        return $this->Storage->contains($object);
     }
 
     public function count() : int
     {
-        return $this->SplObjectStorage->count();
+        return $this->Storage->count();
+    }
+
+    public function remove($object) : void
+    {
+        $this->Storage->remove($object);
+    }
+
+    public function offsetExists($object) : bool
+    {
+        return $this->Storage->offsetExists($object);
+    }
+
+    public function offsetGet($object)
+    {
+        return $this->Storage->offsetGet($object);
+    }
+
+    public function offsetUnset($object, $dumpedData = null) : void
+    {
+        $this->Storage->offsetUnset($object);
+    }
+
+    public function offsetSet($object, $dumpedData = null) : void
+    {
+        $object = $object ?? $dumpedData;
+
+        $this->add($object);
+    }
+
+    public function minus(Set $Storage) : void
+    {
+        foreach ($Storage as $object)
+        {
+            $this->remove($object);
+        }
+    }
+
+    public function intersection(Set $Storage) : void
+    {
+        $this->Storage->intersection($Storage);
     }
 
     public function current()
     {
-        return $this->SplObjectStorage->current();
+        return $this->Storage->current();
     }
 
-    public function next()
+    public function key() : int
     {
-        return $this->SplObjectStorage->next();
+        return $this->Storage->key();
     }
 
-    public function key()
+    public function next() : void
     {
-        return $this->SplObjectStorage->key();
+        $this->Storage->next();
     }
 
-    public function valid()
+    public function rewind() : void
     {
-        return $this->SplObjectStorage->valid();
+        $this->Storage->rewind();
     }
 
-    public function rewind()
+    public function valid() : bool
     {
-        return $this->SplObjectStorage->rewind();
+        return $this->Storage->valid();
     }
 
-    public function offsetExists($offset)
+    public function isScalar() : bool
     {
-        return $this->SplObjectStorage->offsetExists($offset);
-    }
-
-    public function offsetUnset($offset)
-    {
-        return $this->SplObjectStorage->offsetUnset($offset);
+        return $this->isScalar;
     }
 
     public static function isSetsOfSameType(Set $Set1, Set $Set2) : bool
@@ -243,8 +251,6 @@ abstract class AbstractSet extends AbstractSetOps implements Set
         string $methodName
     ) : string
     {
-        $givenType = gettype($givenObject);
-
         return "Argument $argNum passed to $methodName() must "
             . 'contain only '
             . ($this->isScalar ? 'type' : 'instances of')

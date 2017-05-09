@@ -3,16 +3,9 @@ declare(strict_types=1);
 
 namespace Aidantwoods\Sets;
 
-use SplObjectStorage;
-
-/**
- * Unfortunately traits can't enforce that their use class extend a class or
- * implement an interface, so abstract parent class for objects we want to use
- * this in is the best we have.
- */
 abstract class AbstractSetOps implements SetOperations
 {
-    protected $SplObjectStorage;
+    protected $Storage;
 
     public function map(callback $callback) : Set
     {
@@ -21,7 +14,7 @@ abstract class AbstractSetOps implements SetOperations
 
         foreach ($this as $object)
         {
-            $Storage->attach($callback($object), $this->offsetGet($object));
+            $Storage->add($callback($object));
         }
 
         return $Storage;

@@ -3,9 +3,12 @@ declare(strict_types=1);
 
 namespace Aidantwoods\Sets\Storage;
 
-use SplObjectStorage;
+use Aidantwoods\Sets\Storage;
 
-class ObjectStorage extends Storage
+use SplObjectStorage;
+use Iterator;
+
+class ObjectStorage implements Storage
 {
     protected $SplObjectStorage;
 
@@ -14,7 +17,7 @@ class ObjectStorage extends Storage
         $this->SplObjectStorage = new SplObjectStorage;
     }
 
-    public function union(Storage $Storage) : void
+    public function union(Iterator $Storage) : void
     {
         foreach ($Storage as $object)
         {
@@ -37,7 +40,7 @@ class ObjectStorage extends Storage
         return $this->SplObjectStorage->count();
     }
 
-    public function remove($object)
+    public function remove($object) : void
     {
         $this->SplObjectStorage->detach($object);
     }
@@ -52,12 +55,19 @@ class ObjectStorage extends Storage
         return $this->SplObjectStorage->offsetGet($object);
     }
 
-    public function offsetSet($object)
+    public function offsetUnset($object, $dumpedData = null) : void
     {
-        $this->SplObjectStorage->offsetSet($object);
+        $this->SplObjectStorage->offsetUnset($object);
     }
 
-    public function minus(self $Storage)
+    public function offsetSet($object, $dumpedData = null) : void
+    {
+        $object = $object ?? $dumpedData;
+
+        $this->add($object);
+    }
+
+    public function minus(Iterator $Storage) : void
     {
         foreach ($Storage as $object)
         {
@@ -65,7 +75,7 @@ class ObjectStorage extends Storage
         }
     }
 
-    public function intersection(self $Storage)
+    public function intersection(Iterator $Storage) : void
     {
         $Store = new SplObjectStorage;
 

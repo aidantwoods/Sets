@@ -5,10 +5,10 @@ namespace Aidantwoods\Sets\Sets;
 
 use Aidantwoods\Sets\Set;
 
-class StringSet extends AbstractSet implements Set
+class IntSet extends AbstractSet implements Set
 {
     public function __construct()
     {
-        $this->setSetType('string');
+        $this->setSetType('int');
     }
 }
